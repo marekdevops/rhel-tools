@@ -92,8 +92,8 @@ def resolve_sa_files(args) -> list:
     files = list_sa_files()
     if not files:
         die(f"No sa* binary files found in {SA_DIR}")
-    # Default: last two available days
-    return files[-2:] if len(files) >= 2 else files
+    days = getattr(args, "days", 7)
+    return files[-days:]
 
 # ── sadf JSON parsing ──────────────────────────────────────────────────────────
 
@@ -403,6 +403,8 @@ def main() -> None:
         epilog="""
 Examples:
   sudo python3 rhel-load-analyzer.py
+  sudo python3 rhel-load-analyzer.py --days 7
+  sudo python3 rhel-load-analyzer.py --days 14
   sudo python3 rhel-load-analyzer.py --date 21
   sudo python3 rhel-load-analyzer.py --sa-file /var/log/sa/sa21
   sudo python3 rhel-load-analyzer.py --threshold 0.6 --no-color
@@ -412,6 +414,8 @@ Examples:
                         help="Path to a specific sa binary file (e.g. /var/log/sa/sa21)")
     parser.add_argument("--date",      metavar="DD",
                         help="Day number or YYYY-MM-DD to analyse (e.g. 21 or 2024-04-21)")
+    parser.add_argument("--days",      type=int, default=7, metavar="N",
+                        help="How many most recent SA files to analyse  [default: 7]")
     parser.add_argument("--threshold", type=float, default=0.8,
                         help="Load threshold multiplier  [default: 0.8 × nCPU]")
     parser.add_argument("--no-color",  action="store_true",
