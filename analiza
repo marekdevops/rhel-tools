@@ -44,3 +44,31 @@ Krok 1 — znajdź PID postmastera i jego dzieci
   # Jeśli zapytania robią duże sortowania/joiny bez pamięci — lądują w plikach tymczasowych
   ls -lh /var/lib/pgsql/*/data/base/pgsql_tmp/ 2>/dev/null                                                                                                                                                                                             
   du -sh /var/lib/pgsql/*/data/base/pgsql_tmp/ 2>/dev/null                                                 
+
+
+  {                                                                                                                                                                                                                                                    
+    echo "=== RAPORT: PostgreSQL connection storm ==="      
+    echo "Data: $(date)"
+    echo "Serwer: $(hostname)"                                                                                                                                                                                                                         
+    echo ""
+    echo "--- Load average ---"                                                                                                                                                                                                                        
+    uptime                                                                                                                                                                                                                                             
+    echo ""
+    echo "--- Liczba procesów question_app ---"                                                                                                                                                                                                        
+    ps aux | grep "question_app" | grep -v grep | wc -l     
+    echo ""                                                                                                                                                                                                                                            
+    echo "--- Stan procesów (S=idle, R=aktywny) ---"
+    ps aux | grep "question_app" | grep -v grep | awk '{print $8}' | sort | uniq -c                                                                                                                                                                    
+    echo ""                                                                                                                                                                                                                                            
+    echo "--- Połączenia do portu 5432 ---"
+    ss -tnp sport = :5432 | wc -l                                                                                                                                                                                                                      
+    echo ""                                                                                                                                                                                                                                            
+    echo "--- Pamięć ---"
+    free -h                                                                                                                                                                                                                                            
+    echo ""                                                 
+    echo "--- max_connections w postgresql.conf ---"
+    grep max_connections /var/lib/pgsql/*/data/postgresql.conf 2>/dev/null
+    echo ""                                                                                                                                                                                                                                            
+    echo "--- Top procesy CPU ---"
+    ps aux --sort=-%cpu | head -15                                                                                                                                                                                                                     
+  } | tee /tmp/pg_report_$(date +%Y%m%d_%H%M).txt                   
