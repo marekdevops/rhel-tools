@@ -1,0 +1,46 @@
+Krok 1 — znajdź PID postmastera i jego dzieci                                                                                                                                                                                                        
+                                                                                                                                                                                                                                                       
+  # PID postmastera i ile CPU zjada                                                                                                                                                                                                                    
+  ps aux | grep postmaster | grep -v grep                                                                                                                                                                                                              
+   
+  # Wszystkie procesy potomne - tu są właściwe workery                                                                                                                                                                                                 
+  PGPID=$(pgrep -x postmaster || pgrep -f "postgres.*postmaster")
+  ps --ppid $PGPID -o pid,stat,%cpu,%mem,cmd --sort=-%cpu                                                                                                                                                                                              
+                                                                                                                                                                                                                                                       
+  Zobaczysz procesy typu:                                                                                                                                                                                                                              
+  - postgres: user db host SELECT → aktywne zapytanie                                                                                                                                                                                                  
+  - postgres: autovacuum worker → autovacuum (najczęstszy winowajca)                                                                                                                                                                                   
+  - postgres: checkpointer → zapis WAL do dysku                     
+  - postgres: walwriter → write-ahead log                                                                                                                                                                                                              
+                                                            
+  ---                                                                                                                                                                                                                                                  
+  Krok 2 — strace na najgorętszym workerze                  
+                                                                                                                                                                                                                                                       
+  # Weź PID dziecka z największym %CPU z poprzedniego kroku 
+  strace -c -p <PID_WORKERA> -e trace=all sleep 15                                                                                                                                                                                                     
+                                                                                                                                                                                                                                                       
+  Zobaczysz tabelę syscalli — read/write/pread64 oznacza I/O, futex to locki, sendto/recvfrom to sieć.                                                                                                                                                 
+                                                                                                                                                                                                                                                       
+  ---                                                                                                                                                                                                                                                  
+  Krok 3 — logi PostgreSQL (bez dostępu do bazy)            
+                                                                                                                                                                                                                                                       
+  # RHEL — najczęstsze lokalizacje
+  journalctl -u postgresql --since -1h | tail -40                                                                                                                                                                                                      
+  journalctl -u postgresql-16 --since -1h | tail -40   # jeśli wersjonowany
+                                                                                                                                                                                                                                                       
+  ls /var/lib/pgsql/*/data/log/ 2>/dev/null                 
+  tail -100 /var/lib/pgsql/*/data/log/$(ls -t /var/lib/pgsql/*/data/log/ | head -1)                                                                                                                                                                    
+                                                                                                                                                                                                                                                       
+  ---
+  Krok 4 — ile połączeń teraz                                                                                                                                                                                                                          
+                                                            
+  # Liczba aktywnych połączeń do portu 5432
+  ss -tnp sport = :5432 | wc -l                                                                                                                                                                                                                        
+  ss -tnp sport = :5432 | awk '{print $1}' | sort | uniq -c
+                                                                                                                                                                                                                                                       
+  ---                                                       
+  Krok 5 — czy postgres spills na dysk (temp files)                                                                                                                                                                                                    
+                                                                                                                                                                                                                                                       
+  # Jeśli zapytania robią duże sortowania/joiny bez pamięci — lądują w plikach tymczasowych
+  ls -lh /var/lib/pgsql/*/data/base/pgsql_tmp/ 2>/dev/null                                                                                                                                                                                             
+  du -sh /var/lib/pgsql/*/data/base/pgsql_tmp/ 2>/dev/null                                                 
