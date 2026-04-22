@@ -12,6 +12,7 @@ import re
 import subprocess
 import sys
 from datetime import datetime, timedelta
+from typing import Optional
 
 # ── ANSI colour codes ──────────────────────────────────────────────────────────
 R    = "\033[0m"
@@ -40,7 +41,7 @@ def info(msg: str) -> None:
 
 # ── Shell utilities ────────────────────────────────────────────────────────────
 
-def run_cmd(cmd: list, timeout: int = 30) -> str | None:
+def run_cmd(cmd: list, timeout: int = 30) -> Optional[str]:
     """Run a command; return stdout string or None on any failure."""
     try:
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
@@ -96,7 +97,7 @@ def resolve_sa_files(args) -> list:
 
 # ── sadf JSON parsing ──────────────────────────────────────────────────────────
 
-def sadf_json(sa_file: str, sar_flag: str) -> dict | None:
+def sadf_json(sa_file: str, sar_flag: str) -> Optional[dict]:
     """Run `sadf -j <file> -- <sar_flag>` and return parsed JSON."""
     cmd = ["sadf", "-j", sa_file, "--", sar_flag]
     try:
@@ -304,8 +305,8 @@ _FACTOR_COLOR = {
     "Unknown":    R,
 }
 
-def classify(cpu: dict | None, mem: dict | None,
-             io: dict | None, paging: dict | None) -> tuple:
+def classify(cpu: Optional[dict], mem: Optional[dict],
+             io: Optional[dict], paging: Optional[dict]) -> tuple:
     scores = {}
 
     if cpu:
